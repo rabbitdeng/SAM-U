@@ -158,24 +158,3 @@ if __name__ == "__main__":
     pred = np.where(y.detach().cpu().numpy().squeeze(0) > 0.5, True, False)
     print(f"ece = {ece}")
     uncertainty = (uncertainty.squeeze(0))
-    fig = plt.figure()
-    # 定义画布为1*1个划分，并在第1个位置上进行作图
-    ax = fig.add_subplot(111)
-    norm = colors.Normalize(vmin=0, vmax=1)
-    # 定义横纵坐标的刻度
-    # ax.set_yticks(range(len(yLabel)))
-    # ax.set_yticklabels(yLabel, fontproperties=font)
-    # ax.set_xticks(range(len(xLabel)))
-    # ax.set_xticklabels(xLabel)
-    # 作图并选择热图的颜色填充风格，这里选择hot
-    plt.axis("off")
-    img = Image.fromarray(pred)
-    img.save("predg002vith.png")
-    im = ax.imshow(uncertainty, cmap=plt.cm.jet, norm=norm)
-    # 增加右侧的颜色刻度条
-    #plt.colorbar(im)
-    # 增加标题
-
-    # show
-    plt.savefig("g002normvith.png", bbox_inches='tight', pad_inches=0.0)
-    # plt.show()
