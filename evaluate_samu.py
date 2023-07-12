@@ -97,64 +97,6 @@ def eval(input_dir, output_dir, gt_dir, predictor, generator, with_prompt=True):
     return dice_score.mean(axis=0), ece_score.mean(axis=0), sm_score.mean(axis=0), fm_score.mean(axis=0)
 
 
-def eval_aug(input_dir, output_dir, gt_dir, predictor, generator, with_prompt=True):
-    files_list = os.listdir(input_dir)
-    pbar = files_list
-    dice_score = []
-    ece_score = []
-    sm_score = []
-    fm_score = []
-    for i, item in enumerate(pbar):
-        gt = read_mask(os.path.join(gt_dir, item.replace("img", "msk")))
-        input_path = os.path.join(input_dir, item)
-        gt = np.where(gt > 254, 0, 1).astype("uint8")
-        if with_prompt:
-            aug_num = 5
-            pred_list = []
-            col, row = np.nonzero(gt)
-            prompt = np.array([row[0], col[0], row[-1], col[-1]])
-            for i in range(aug_num):
-                aug_prompt = prompt_aug(prompt=prompt, target=gt, aug=True)
-                with torch.no_grad():
-                    mask = masking(input_path, aug_prompt, predictor)
-                # mask = mask.squeeze(0)
-                pred_list.append(torch.from_numpy(mask))
-            y = torch.cat(pred_list, dim=0)
-            mask = torch.mean(y, dim=0)
-            mask = torch.sigmoid(mask).cpu().numpy()
-            mask = np.where(mask >= 0.5, True, False)
-            dice = dc(mask, gt)
-            ece = ece_binary(mask, gt)
-        else:
-            input = cv2.imread(input_path)
-            input = cv2.cvtColor(input, cv2.COLOR_BGR2RGB)
-            masks = generator.generate(input)
-            max_dc = 0.0
-            for sample in masks:
-                sample_dc = dc(sample["segmentation"], gt)
-                if sample_dc > max_dc:
-                    mask = sample["segmentation"]
-                    max_dc = sample_dc
-            # limited_mask = torch.sigmoid(mask).cpu().detach().numpy().copy().squeeze(0)
-            dice = dc(mask, gt)
-            ece = ece_binary(mask, gt)
-        sm = smeasure(mask,
-                      gt)
-
-        fm = Fmeasure_calu(mask,
-                           gt, threshold=0.5)
-        ece_score.append(ece)
-        dice_score.append(dice)
-        sm_score.append(sm)
-        fm_score.append(fm)
-        print(f'{item}:dice={dice},ece={ece},sm = {sm},fm = {fm}')
-    dice_score = np.array(dice_score)
-    ece_score = np.array(ece_score)
-    sm_score = np.array(sm_score)
-    fm_score = np.array(fm_score)
-    return dice_score.mean(axis=0), ece_score.mean(axis=0), sm_score.mean(axis=0), fm_score.mean(axis=0)
-
-
 def masking(image_path, box_prompt, predictor):
     input = cv2.imread(image_path)
     input = cv2.cvtColor(input, cv2.COLOR_BGR2RGB)
@@ -170,47 +112,6 @@ def masking(image_path, box_prompt, predictor):
     # for mask_item in masks:
     #    mask+=mask_item["segmentation"]
     return masks
-
-
-def prompt_aug(prompt, target, aug=True):
-    target_h, target_w = target.shape
-    scale_factor = 32
-    if aug:
-        left_x = prompt[0] - 25 + random.randint(-target_w / scale_factor, target_w / scale_factor)
-        left_y = prompt[1] - 25 + random.randint(-target_h / scale_factor, target_h / scale_factor)
-        right_x = prompt[2] + 25 + random.randint(-target_w / scale_factor, target_w / scale_factor)
-        right_y = prompt[3] + 25 + random.randint(-target_h / scale_factor, target_h / scale_factor)
-    else:
-        left_x = prompt[0] - 25
-        left_y = prompt[1] - 25
-        right_x = prompt[2] + 25
-        right_y = prompt[3] + 25
-    if left_x < 0:
-        left_x = 0
-    elif left_x > target_w:
-        left_x = target_w
-    else:
-        pass
-    if left_y < 0:
-        left_y = 0
-    elif left_y > target_h:
-        left_y = target_h
-    else:
-        pass
-    if right_x < 0:
-        right_x = 0
-    elif right_x > target_w:
-        right_x = target_w
-    else:
-        pass
-    if right_y < 0:
-        right_y = 0
-    elif right_y > target_h:
-        right_y = target_h
-    else:
-        pass
-
-    return np.array([left_x, left_y, right_x, right_y])
 
 
 if __name__ == "__main__":
